@@ -10,6 +10,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Установка на главный экран телефона -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1d4f8c">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Брони Бобур">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
 
@@ -164,6 +172,18 @@
     </form>
   </dialog>
 
+  <!-- ===== ПЛАШКА "УСТАНОВИТЬ НА ТЕЛЕФОН" ===== -->
+  <div class="install" id="installBar" hidden>
+    <img src="icon-192.png" alt="" width="40" height="40">
+    <div class="install__text">
+      <b>Добавить на главный экран</b>
+      <span id="installHint">Брони будут открываться как приложение — одним нажатием.</span>
+    </div>
+    <button class="btn btn--primary" id="installBtn" hidden>Установить</button>
+    <button class="install__close" id="installClose" aria-label="Скрыть">✕</button>
+  </div>
+
+  <script src="install.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

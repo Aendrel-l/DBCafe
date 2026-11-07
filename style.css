@@ -197,3 +197,19 @@ form.dlg__body { padding: 8px 18px 18px; display: grid; gap: 10px; }
 .setup code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
 
 .nowrap { white-space: nowrap; }
+
+/* ---------- Плашка "установить на телефон" ---------- */
+.install {
+  position: fixed; z-index: 50;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px; margin: 0 auto;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px; box-shadow: 0 10px 30px rgba(10, 20, 35, .18);
+}
+.install img { border-radius: 10px; flex-shrink: 0; }
+.install__text { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 13px; color: var(--muted); }
+.install__text b { color: var(--ink); font-size: 14px; }
+.install__close { border: 0; background: transparent; color: var(--muted); font-size: 16px; padding: 6px; flex-shrink: 0; }
