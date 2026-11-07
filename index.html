@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Бобур · Брони</title>
+  <!-- Внутренний сайт для администраторов: поисковикам не показываем -->
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== ЭКРАН НАСТРОЙКИ (если не вставлен конфиг Firebase) ===== -->
+  <div class="wrap" id="setupScreen" hidden>
+    <div class="setup">
+      <h2>Сайт ещё не подключён к базе</h2>
+      <p>Откройте файл <code>firebase-config.js</code> и вставьте настройки вашего проекта Firebase. Инструкция — в файле <code>ИНСТРУКЦИЯ.md</code>.</p>
+    </div>
+  </div>
+
+  <!-- ===== ВХОД ===== -->
+  <div class="wrap login" id="loginScreen" hidden>
+    <form class="login__card" id="loginForm">
+      <h1>Бобур</h1>
+      <p>Журнал броней. Войдите, чтобы продолжить.</p>
+      <label class="field">Почта
+        <input type="email" id="loginEmail" autocomplete="username" required>
+      </label>
+      <label class="field">Пароль
+        <input type="password" id="loginPass" autocomplete="current-password" required>
+      </label>
+      <div class="login__err" id="loginErr" hidden></div>
+      <button class="btn btn--primary" type="submit" id="loginBtn">Войти</button>
+    </form>
+  </div>
+
+  <!-- ===== ПРИЛОЖЕНИЕ ===== -->
+  <div id="appScreen" hidden>
+    <header class="top">
+      <div class="wrap top__inner">
+        <div class="brand"><h1>Бобур</h1><span>брони</span></div>
+        <nav class="tabs" role="tablist" aria-label="Разделы">
+          <button class="tab" role="tab" id="tab-day" data-view="day" aria-selected="true">День</button>
+          <button class="tab" role="tab" id="tab-month" data-view="month" aria-selected="false">Месяц</button>
+          <button class="tab" role="tab" id="tab-places" data-view="places" aria-selected="false">Места</button>
+        </nav>
+        <div class="user"><span id="userEmail"></span><button class="btn" id="logoutBtn">Выйти</button></div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div id="notice" class="notice" hidden></div>
+
+      <!-- ===== ДЕНЬ ===== -->
+      <section id="view-day">
+        <div class="toolbar">
+          <h2 id="dayTitle">Сегодня</h2>
+          <button class="btn btn--icon" id="dayPrev" aria-label="Предыдущий день">‹</button>
+          <button class="btn" id="dayToday">Сегодня</button>
+          <button class="btn btn--icon" id="dayNext" aria-label="Следующий день">›</button>
+          <input type="date" id="dayPick" aria-label="Выбрать дату">
+          <span class="spacer"></span>
+          <div class="legend"><span><i style="background:var(--teal-soft);border:1px solid var(--teal)"></i>Свободно</span><span><i style="background:var(--booked-bg);border:1px solid var(--booked)"></i>Бронь</span><span><i style="background:var(--deposit-bg);border:1px solid var(--deposit)"></i>Задаток</span></div>
+        </div>
+        <div class="summary" id="daySummary"></div>
+        <div id="dayGrid"></div>
+      </section>
+
+      <!-- ===== МЕСЯЦ ===== -->
+      <section id="view-month" hidden>
+        <div class="toolbar">
+          <h2 id="monthTitle">Месяц</h2>
+          <button class="btn btn--icon" id="monthPrev" aria-label="Предыдущий месяц">‹</button>
+          <button class="btn" id="monthNow">Текущий</button>
+          <button class="btn btn--icon" id="monthNext" aria-label="Следующий месяц">›</button>
+          <span class="spacer"></span>
+          <div class="summary" id="monthSummary" style="margin:0"></div>
+        </div>
+        <div class="cal" id="cal"></div>
+
+        <form class="search" id="searchForm">
+          <input type="search" id="searchInput" placeholder="Найти бронь по имени или телефону">
+          <button class="btn btn--primary" type="submit">Найти</button>
+        </form>
+        <div class="results" id="results"></div>
+      </section>
+
+      <!-- ===== МЕСТА ===== -->
+      <section id="view-places" hidden>
+        <div class="panel">
+          <h3>Места</h3>
+          <p class="hint">Беседки, столы, залы — каждое место становится столбцом в таблице.</p>
+          <ul class="places" id="placesList"></ul>
+          <form class="row" id="addPlaceForm">
+            <label style="flex:1 1 200px">Новое место
+              <input type="text" id="newPlace" placeholder="Например: Беседка 2" maxlength="40">
+            </label>
+            <button class="btn btn--primary" type="submit">Добавить</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h3>Время брони</h3>
+          <p class="hint">Строки таблицы. Например, с 10:00 до 22:00 каждые 2 часа.</p>
+          <form class="row" id="slotsForm">
+            <label>С <select id="slotStart"></select></label>
+            <label>До <select id="slotEnd"></select></label>
+            <label>Шаг
+              <select id="slotStep">
+                <option value="30">30 минут</option>
+                <option value="60">1 час</option>
+                <option value="90">1,5 часа</option>
+                <option value="120">2 часа</option>
+                <option value="180">3 часа</option>
+              </select>
+            </label>
+            <button class="btn btn--primary" type="submit">Сохранить</button>
+          </form>
+          <div class="slots-preview" id="slotsPreview"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== ОКНО БРОНИ ===== -->
+  <dialog id="dlg">
+    <div class="dlg__head">
+      <h3 id="dlgTitle">Новая бронь</h3>
+      <p id="dlgSub"></p>
+    </div>
+    <form class="dlg__body" id="dlgForm" novalidate>
+      <label class="field">Имя гостя *
+        <input type="text" id="fName" maxlength="60" autocomplete="off" required>
+      </label>
+      <div class="two">
+        <label class="field">Телефон
+          <input type="tel" id="fPhone" maxlength="16" placeholder="+7 7__ ___ __ __" autocomplete="off" inputmode="tel">
+        </label>
+        <label class="field">Гостей
+          <input type="number" id="fGuests" min="1" max="500" inputmode="numeric">
+        </label>
+      </div>
+      <label class="field">Задаток, ₸
+        <input type="number" id="fDeposit" min="0" step="500" inputmode="numeric" placeholder="0 — без задатка">
+      </label>
+      <label class="field">Комментарий
+        <textarea id="fComment" rows="2" maxlength="300" placeholder="День рождения, торт, детский стул…"></textarea>
+      </label>
+      <div class="dlg__error" id="dlgError" hidden></div>
+      <div class="confirm" id="dlgConfirm" hidden>
+        Удалить эту бронь?<span class="spacer"></span>
+        <button type="button" class="btn" id="dlgConfirmNo">Нет</button>
+        <button type="button" class="btn btn--danger-solid" id="dlgConfirmYes">Удалить</button>
+      </div>
+      <div class="dlg__actions">
+        <button type="button" class="btn btn--danger" id="dlgDelete" hidden>Удалить бронь</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="dlgCancel">Закрыть</button>
+        <button type="submit" class="btn btn--primary" id="dlgSave">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
