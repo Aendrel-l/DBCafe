@@ -6,7 +6,7 @@
 (() => {
   // Service worker нужен браузеру, чтобы разрешить установку
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {}));
   }
 
   const bar = document.getElementById('installBar');

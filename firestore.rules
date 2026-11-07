@@ -30,6 +30,11 @@ service cloud.firestore {
     match /groups/{id}   { allow read: if canView(); allow write: if isAdmin(); }
     match /settings/{id} { allow read: if canView(); allow write: if isAdmin(); }
 
+    // Отметки "я это уже просмотрел": у каждого сотрудника своя, чужие не видны
+    match /seen/{userEmail} {
+      allow read, write: if canView() && email() == userEmail;
+    }
+
     // Права: каждый видит свои, админ видит и меняет все
     match /roles/{userEmail} {
       allow read:  if isAdmin() || (signedIn() && email() == userEmail);

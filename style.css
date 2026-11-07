@@ -237,3 +237,20 @@ table.day thead tr.groups th.time { background: var(--blue-soft); }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { flex-shrink: 0; }
 @media (max-width: 420px) { .tab { padding: 7px 11px; font-size: 14px; } }
+
+/* ---------- Новые брони (поставлены другим сотрудником, ещё не просмотрены) ---------- */
+:root { --new: #c53030; --new-bg: #fde8e8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --new: #ff8a80; --new-bg: #3d1f22; } }
+:root[data-theme="dark"] { --new: #ff8a80; --new-bg: #3d1f22; }
+.slot--new { background: var(--new-bg); box-shadow: inset 3px 0 0 var(--new); }
+.slot--new .slot__name { color: var(--new); }
+.new-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--new); margin-bottom: 2px; }
+.new-pill { color: var(--new); font-weight: 600; }
+.btn--small { padding: 4px 10px; font-size: 13px; }
+.gchip .cnt { display: inline-block; margin-left: 6px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--bg); color: var(--ink); font-size: 12px; font-weight: 600; text-align: center; }
+.gchip[aria-selected="true"] .cnt { background: rgba(255,255,255,.25); color: inherit; }
+.gchip { position: relative; }
+.gdot { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: var(--new); box-shadow: 0 0 0 2px var(--bg); }
+.cal__new { font-size: 11px; font-weight: 700; color: var(--new); }
+.cal__day.has-new { border-color: var(--new); }
+.tab-dot { display: inline-block; margin-left: 4px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--new); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }

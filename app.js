@@ -12,7 +12,7 @@ import {
   getFirestore, collection, doc, query, where, onSnapshot,
   getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import { firebaseConfig, LOGIN_DOMAIN, OWNER_LOGIN } from './firebase-config.js';
+import { firebaseConfig, LOGIN_DOMAIN, OWNER_LOGIN } from './firebase-config.js?v=2026-11-07d';
 
 // ================= Утилиты =================
 const $ = id => document.getElementById(id);
@@ -84,6 +84,7 @@ const state = {
   staff: [],              // [{id: email, role}]
   groupFilter: 'all',
   role: null,             // 'admin' | 'book' | 'view' | null (нет доступа)
+  seen: null,             // {since, ids: {bookingId: время просмотра}} — что я уже смотрел
   loaded: false,
 };
 let unsubs = [];
@@ -132,7 +133,12 @@ onAuthStateChanged(auth, user => {
   unsubs.forEach(u => u()); unsubs = []; stopData();
   state.role = null; state.loaded = false; state.staff = [];
   $('tab-places').hidden = true; $('tab-staff').hidden = true;
-  if (!user) { $('appScreen').hidden = true; $('loginScreen').hidden = false; return; }
+  if (!user) {
+    // При выходе стираем с экрана всё, что видел прошлый сотрудник
+    state.bookings = new Map(); state.places = []; state.groups = []; state.seen = null;
+    ['dayGrid', 'daySummary', 'groupFilter', 'cal', 'results', 'placesList', 'groupsList', 'staffList', 'monthSummary'].forEach(id => $(id).innerHTML = '');
+    $('appScreen').hidden = true; $('loginScreen').hidden = false; return;
+  }
   $('loginScreen').hidden = true; $('appScreen').hidden = false;
   $('userEmail').textContent = emailToLogin(user.email);
   watchRole(user.email);
@@ -201,8 +207,50 @@ function startData() {
     }, onDbError));
   }
 
+  // Что этот сотрудник уже просмотрел (у каждого своё)
+  const myEmail = auth.currentUser.email;
+  dataUnsubs.push(onSnapshot(doc(db, 'seen', myEmail), snap => {
+    if (!snap.exists()) {
+      // Первый вход с этой функцией: всё, что было раньше, считаем просмотренным
+      state.seen = { since: new Date().toISOString(), ids: {} };
+      setDoc(doc(db, 'seen', myEmail), state.seen).catch(() => {});
+    } else {
+      state.seen = { since: '', ids: {}, ...snap.data() };
+    }
+    render();
+  }, () => { state.seen = null; }));
+
   const d = parse(state.day);
   ensureMonth(d.getFullYear(), d.getMonth());
+}
+
+// ================= Новые брони (красные) =================
+// Новая = поставлена или изменена ДРУГИМ сотрудником и я её ещё не открывал
+const myLogin = () => emailToLogin(auth.currentUser?.email);
+function isNew(b) {
+  if (!state.seen || !b || !b.updatedBy || b.updatedBy === myLogin()) return false;
+  const changed = b.updatedAt || b.createdAt || '';
+  const seenAt = state.seen.ids?.[b.id] || state.seen.since || '';
+  return changed > seenAt;
+}
+let seenTimer = null;
+function markSeen(ids) {
+  if (!state.seen || !ids.length) return;
+  const now = new Date().toISOString();
+  const today = todayStr();
+  // Храним отметки только для сегодняшних и будущих броней (дата — начало id брони)
+  const keep = {};
+  for (const [id, t] of Object.entries(state.seen.ids || {})) if (id.slice(0, 10) >= today) keep[id] = t;
+  ids.forEach(id => { keep[id] = now; });
+  state.seen = { ...state.seen, ids: keep };
+  render();
+  clearTimeout(seenTimer);
+  seenTimer = setTimeout(() => setDoc(doc(db, 'seen', auth.currentUser.email), state.seen).catch(() => {}), 400);
+}
+function newCountBadge() {
+  const n = [...state.bookings.values()].filter(isNew).length;
+  const tab = $('tab-month');
+  tab.innerHTML = 'Месяц' + (n ? ` <span class="tab-dot" aria-label="${n} новых">${n}</span>` : '');
 }
 
 function ensureMonth(y, m) {
@@ -241,6 +289,7 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
 
 function render() {
   if (!state.role) return;
+  newCountBadge();
   if (state.view === 'day') renderDay();
   if (state.view === 'month') renderMonth();
   if (state.view === 'places') renderPlaces();
@@ -248,13 +297,24 @@ function render() {
 }
 
 // ================= День =================
-function renderGroupFilter(places) {
+function renderGroupFilter(places, dayList) {
   const box = $('groupFilter');
+  const gOf = p => state.groups.some(g => g.id === p.groupId) ? p.groupId : 'none';
+  const placeGroup = new Map(places.map(p => [p.id, gOf(p)]));
+  const cnt = {}, fresh = {};
+  for (const b of dayList) {
+    const g = placeGroup.get(b.placeId); if (!g) continue;
+    cnt[g] = (cnt[g] || 0) + 1; cnt.all = (cnt.all || 0) + 1;
+    if (isNew(b)) { fresh[g] = (fresh[g] || 0) + 1; fresh.all = (fresh.all || 0) + 1; }
+  }
+  // Число — сколько броней в группе; красная точка — есть новые, которые вы ещё не смотрели
+  const badge = id => (cnt[id] ? `<span class="cnt">${cnt[id]}</span>` : '') +
+    (fresh[id] ? `<span class="gdot" title="Новых: ${fresh[id]}" aria-label="новых: ${fresh[id]}"></span>` : '');
   const used = new Set(places.map(p => state.groups.some(g => g.id === p.groupId) ? p.groupId : 'none'));
   const chips = [{ id: 'all', name: 'Все' }, ...state.groups.filter(g => used.has(g.id))];
   if (used.has('none') && state.groups.length) chips.push({ id: 'none', name: 'Без группы' });
   if (chips.length <= 2) { box.innerHTML = ''; state.groupFilter = 'all'; return; } // одна группа — фильтр не нужен
-  box.innerHTML = chips.map(c => `<button class="gchip" role="tab" data-g="${esc(c.id)}" aria-selected="${state.groupFilter === c.id}">${esc(c.name)}</button>`).join('');
+  box.innerHTML = chips.map(c => `<button class="gchip" role="tab" data-g="${esc(c.id)}" aria-selected="${state.groupFilter === c.id}">${esc(c.name)}${badge(c.id)}</button>`).join('');
   box.querySelectorAll('.gchip').forEach(b => b.onclick = () => { state.groupFilter = b.dataset.g; renderDay(); });
 }
 
@@ -278,7 +338,8 @@ function renderDay() {
     $('daySummary').textContent = ''; $('groupFilter').innerHTML = '';
     return;
   }
-  renderGroupFilter(all);
+  const dayAll = [...state.bookings.values()].filter(b => b.date === date);
+  renderGroupFilter(all, dayAll);
   const inGroup = p => state.groupFilter === 'all' ? true
     : state.groupFilter === 'none' ? !state.groups.some(g => g.id === p.groupId)
     : p.groupId === state.groupFilter;
@@ -299,6 +360,11 @@ function renderDay() {
     `<span>Броней: <b>${byCell.size}</b> из ${total}</span><span>Свободно: <b>${total - byCell.size}</b></span>` +
     (guests ? `<span>Гостей: <b>${guests}</b></span>` : '') +
     (dep ? `<span>Задатков: <b>${money(dep)}</b></span>` : '');
+  const dayNew = dayAll.filter(isNew);
+  if (dayNew.length) {
+    $('daySummary').innerHTML += `<span class="new-pill">Новых: ${dayNew.length}</span><button class="btn btn--small" id="seenDay">Отметить просмотренными</button>`;
+    $('seenDay').onclick = () => markSeen(dayNew.map(b => b.id));
+  }
 
   // Шапка: строка групп (если групп больше одной) + строка мест
   const spans = [];
@@ -318,7 +384,9 @@ function renderDay() {
       const b = byCell.get(p.id + '|' + t);
       if (b) {
         const meta = [b.phone ? `<span class="nowrap">${esc(b.phone)}</span>` : '', b.guests ? esc(b.guests + ' ' + plural(b.guests, 'гость', 'гостя', 'гостей')) : ''].filter(Boolean).join(' · ');
-        html += `<td class="cell"><button class="slot slot--booked" data-id="${esc(b.id)}">
+        const fresh = isNew(b);
+        html += `<td class="cell"><button class="slot slot--booked${fresh ? ' slot--new' : ''}" data-id="${esc(b.id)}">
+          ${fresh ? `<span class="new-tag">Новая · ${esc(b.updatedBy)}</span>` : ''}
           <span class="slot__name">${esc(b.name)}</span>
           ${meta ? `<span class="slot__meta">${meta}</span>` : ''}
           ${b.comment ? `<span class="slot__meta">${esc(b.comment)}</span>` : ''}
@@ -357,25 +425,32 @@ function renderMonth() {
   const start = new Date(y, m, 1 - offset);
   const today = todayStr();
 
-  const counts = new Map(), deps = new Map();
+  const counts = new Map(), deps = new Map(), news = new Map();
   let monthCount = 0, monthDep = 0;
   for (const b of state.bookings.values()) {
     counts.set(b.date, (counts.get(b.date) || 0) + 1);
+    if (isNew(b)) news.set(b.date, (news.get(b.date) || 0) + 1);
     deps.set(b.date, (deps.get(b.date) || 0) + (Number(b.deposit) || 0));
     const d = parse(b.date);
     if (d.getFullYear() === y && d.getMonth() === m) { monthCount++; monthDep += Number(b.deposit) || 0; }
   }
   $('monthSummary').innerHTML = `<span>Броней за месяц: <b>${monthCount}</b></span>` + (monthDep ? `<span>Задатков: <b>${money(monthDep)}</b></span>` : '');
+  const allNew = [...state.bookings.values()].filter(isNew);
+  if (allNew.length) {
+    $('monthSummary').innerHTML += `<span class="new-pill">Новых: ${allNew.length}</span><button class="btn btn--small" id="seenAll">Все просмотрены</button>`;
+    $('seenAll').onclick = () => markSeen(allNew.map(b => b.id));
+  }
 
   let html = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => `<div class="cal__dow">${d}</div>`).join('');
   for (let i = 0; i < 42; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i);
     if (i >= 35 && d.getMonth() !== m) break;
-    const s = ymd(d), c = counts.get(s) || 0, dp = deps.get(s) || 0;
-    const cls = ['cal__day', d.getMonth() !== m ? 'other' : '', s === today ? 'today' : ''].join(' ');
+    const s = ymd(d), c = counts.get(s) || 0, dp = deps.get(s) || 0, nw = news.get(s) || 0;
+    const cls = ['cal__day', d.getMonth() !== m ? 'other' : '', s === today ? 'today' : '', nw ? 'has-new' : ''].join(' ');
     html += `<button class="${cls}" data-date="${s}">
       <span class="cal__num">${d.getDate()}</span>
       ${c ? `<span class="cal__count">${c} ${plural(c, 'бронь', 'брони', 'броней')}</span>` : ''}
+      ${nw ? `<span class="cal__new">${nw} ${plural(nw, 'новая', 'новые', 'новых')}</span>` : ''}
       ${dp ? `<span class="cal__dep">${money(dp)}</span>` : ''}
     </button>`;
   }
@@ -607,6 +682,7 @@ attachPhoneMask($('fPhone'));
 let editing = null;
 
 function openDialog(b, slot) {
+  if (b && isNew(b)) markSeen([b.id]);
   editing = b ? { ...b } : { ...slot };
   const place = state.places.find(p => p.id === editing.placeId);
   const edit = canBook();
