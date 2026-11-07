@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Кто вошёл и какой у него логин ("почта")
+    function signedIn() { return request.auth != null; }
+    function email()    { return request.auth.token.email; }
+
+    // Главный админ — всегда полные права (логин admin)
+    function isOwner()  { return signedIn() && email() == 'admin@bobur-broni.firebaseapp.com'; }
+
+    // Права сотрудника хранятся в коллекции roles: roles/<почта> = { role: 'admin' | 'book' | 'view' }
+    function role() {
+      return exists(/databases/$(database)/documents/roles/$(email()))
+        ? get(/databases/$(database)/documents/roles/$(email())).data.role
+        : 'none';
+    }
+    function isAdmin()  { return isOwner() || (signedIn() && role() == 'admin'); }
+    function canBook()  { return isAdmin() || (signedIn() && role() == 'book'); }
+    function canView()  { return canBook() || (signedIn() && role() == 'view'); }
+
+    // Брони: смотрят все с правами, меняют — "Брони" и "Админ"
+    match /bookings/{id} {
+      allow read:  if canView();
+      allow write: if canBook();
+    }
+
+    // Места, группы, время: смотрят все с правами, меняет только админ
+    match /places/{id}   { allow read: if canView(); allow write: if isAdmin(); }
+    match /groups/{id}   { allow read: if canView(); allow write: if isAdmin(); }
+    match /settings/{id} { allow read: if canView(); allow write: if isAdmin(); }
+
+    // Права: каждый видит свои, админ видит и меняет все
+    match /roles/{userEmail} {
+      allow read:  if isAdmin() || (signedIn() && email() == userEmail);
+      allow write: if isAdmin();
+    }
+  }
+}

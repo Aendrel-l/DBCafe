@@ -34,8 +34,8 @@
     <form class="login__card" id="loginForm">
       <h1>Бобур</h1>
       <p>Журнал броней. Войдите, чтобы продолжить.</p>
-      <label class="field">Почта
-        <input type="email" id="loginEmail" autocomplete="username" required>
+      <label class="field">Логин
+        <input type="text" id="loginEmail" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="например, elena" required>
       </label>
       <label class="field">Пароль
         <input type="password" id="loginPass" autocomplete="current-password" required>
@@ -53,9 +53,10 @@
         <nav class="tabs" role="tablist" aria-label="Разделы">
           <button class="tab" role="tab" id="tab-day" data-view="day" aria-selected="true">День</button>
           <button class="tab" role="tab" id="tab-month" data-view="month" aria-selected="false">Месяц</button>
-          <button class="tab" role="tab" id="tab-places" data-view="places" aria-selected="false">Места</button>
+          <button class="tab" role="tab" id="tab-places" data-view="places" aria-selected="false" hidden>Места</button>
+          <button class="tab" role="tab" id="tab-staff" data-view="staff" aria-selected="false" hidden>Сотрудники</button>
         </nav>
-        <div class="user"><span id="userEmail"></span><button class="btn" id="logoutBtn">Выйти</button></div>
+        <div class="user"><span id="userEmail"></span><span class="role-badge" id="roleBadge"></span><button class="btn" id="logoutBtn">Выйти</button></div>
       </div>
     </header>
 
@@ -73,6 +74,7 @@
           <span class="spacer"></span>
           <div class="legend"><span><i style="background:var(--teal-soft);border:1px solid var(--teal)"></i>Свободно</span><span><i style="background:var(--booked-bg);border:1px solid var(--booked)"></i>Бронь</span><span><i style="background:var(--deposit-bg);border:1px solid var(--deposit)"></i>Задаток</span></div>
         </div>
+        <div class="group-filter" id="groupFilter" role="tablist" aria-label="Группы мест"></div>
         <div class="summary" id="daySummary"></div>
         <div id="dayGrid"></div>
       </section>
@@ -99,12 +101,27 @@
       <!-- ===== МЕСТА ===== -->
       <section id="view-places" hidden>
         <div class="panel">
+          <h3>Группы</h3>
+          <p class="hint">Беседки, шатры, тапчаны, зал… В таблице места одной группы стоят рядом, и по группам можно фильтровать.</p>
+          <ul class="places" id="groupsList"></ul>
+          <form class="row" id="addGroupForm">
+            <label style="flex:1 1 200px">Новая группа
+              <input type="text" id="newGroup" placeholder="Например: Шатры" maxlength="30">
+            </label>
+            <button class="btn btn--primary" type="submit">Добавить</button>
+          </form>
+        </div>
+
+        <div class="panel">
           <h3>Места</h3>
-          <p class="hint">Беседки, столы, залы — каждое место становится столбцом в таблице.</p>
+          <p class="hint">Каждое место — столбец в таблице. Выберите, к какой группе оно относится.</p>
           <ul class="places" id="placesList"></ul>
           <form class="row" id="addPlaceForm">
-            <label style="flex:1 1 200px">Новое место
+            <label style="flex:1 1 180px">Новое место
               <input type="text" id="newPlace" placeholder="Например: Беседка 2" maxlength="40">
+            </label>
+            <label>Группа
+              <select id="newPlaceGroup"></select>
             </label>
             <button class="btn btn--primary" type="submit">Добавить</button>
           </form>
@@ -128,6 +145,37 @@
             <button class="btn btn--primary" type="submit">Сохранить</button>
           </form>
           <div class="slots-preview" id="slotsPreview"></div>
+        </div>
+      </section>
+
+      <!-- ===== СОТРУДНИКИ (только админ) ===== -->
+      <section id="view-staff" hidden>
+        <div class="panel">
+          <h3>Новый сотрудник</h3>
+          <p class="hint">Придумайте логин (латиницей) и пароль от 6 символов и передайте их сотруднику.</p>
+          <form class="row" id="addStaffForm">
+            <label style="flex:1 1 140px">Логин
+              <input type="text" id="staffLogin" placeholder="elena" maxlength="30" autocapitalize="none" spellcheck="false" autocomplete="off">
+            </label>
+            <label style="flex:1 1 140px">Пароль
+              <input type="text" id="staffPass" placeholder="от 6 символов" maxlength="40" autocomplete="off">
+            </label>
+            <label>Права
+              <select id="staffRole">
+                <option value="view">Просмотр</option>
+                <option value="book">Брони</option>
+                <option value="admin">Админ</option>
+              </select>
+            </label>
+            <button class="btn btn--primary" type="submit" id="addStaffBtn">Создать</button>
+          </form>
+          <div class="slots-preview" id="staffMsg"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Сотрудники и права</h3>
+          <p class="hint"><b>Админ</b> — всё: брони, места, группы, время, сотрудники. <b>Брони</b> — ставит, меняет и удаляет брони. <b>Просмотр</b> — только смотрит.</p>
+          <ul class="places" id="staffList"></ul>
         </div>
       </section>
     </main>
